@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Revista Academica de Contabilidad Administrativa</title>
+  <title>Revista de Contabilidad Administrativa</title>
   <style>
     html, body {
       margin: 0;
@@ -11,58 +11,194 @@
       width: 100%;
       height: 100%;
       overflow: hidden;
-      background: #2b2b2b;
-    }
-    .topbar {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      height: 44px;
       background: #1f1f1f;
+      font-family: Arial, sans-serif;
+    }
+    .toolbar {
+      height: 48px;
+      background: #111827;
       color: #fff;
       display: flex;
       align-items: center;
       justify-content: space-between;
       padding: 0 14px;
       box-sizing: border-box;
-      font-family: Arial, sans-serif;
+      gap: 10px;
+    }
+    .toolbar .left {
       font-size: 14px;
-      z-index: 10;
+      font-weight: 600;
     }
-    .topbar a {
+    .toolbar .right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .toolbar button, .toolbar a {
+      background: #2563eb;
       color: #fff;
-      text-decoration: none;
-      background: #3b82f6;
-      padding: 6px 10px;
-      border-radius: 6px;
-    }
-    .viewer-wrap {
-      position: absolute;
-      top: 44px;
-      left: 0;
-      right: 0;
-      bottom: 0;
-    }
-    iframe {
-      width: 100%;
-      height: 100%;
       border: 0;
-      display: block;
+      padding: 8px 11px;
+      border-radius: 6px;
+      text-decoration: none;
+      cursor: pointer;
+      font-size: 14px;
+      line-height: 1;
+    }
+    .toolbar button:hover, .toolbar a:hover {
+      background: #1d4ed8;
+    }
+    .pageinfo {
+      color: #d1d5db;
+      font-size: 14px;
+      min-width: 110px;
+      text-align: center;
+    }
+    .viewer {
+      width: 100%;
+      height: calc(100% - 48px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      background: #2b2b2b;
+      position: relative;
+    }
+    #pdfCanvas {
       background: #fff;
+      box-shadow: 0 10px 30px rgba(0,0,0,.35);
+      max-width: 100%;
+      max-height: 100%;
+    }
+    .error {
+      position: absolute;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      text-align: center;
+      padding: 20px;
+    }
+    .error a {
+      color: #fff;
+      font-weight: 700;
     }
   </style>
 </head>
 <body>
-  <div class="topbar">
-    <div>Revista Académica de Contabilidad Administrativa</div>
-    <a href="revista-de-contabilidad-administrativa-c.pdf" target="_blank" rel="noopener">Abrir PDF</a>
+  <div class="toolbar">
+    <div class="left">Revista académica</div>
+    <div class="right">
+      <button id="prev">Anterior</button>
+      <div class="pageinfo" id="pageInfo">Cargando...</div>
+      <button id="next">Siguiente</button>
+      <a href="revista-de-contabilidad-administrativa-c.pdf" target="_blank" rel="noopener">Abrir PDF</a>
+    </div>
   </div>
 
-  <div class="viewer-wrap">
-    <iframe
-  src="https://mozilla.github.io/pdf.js/web/viewer.html?file=revista-de-contabilidad-administrativa-c.pdf#page=1&zoom=page-fit">
-</iframe>
+  <div class="viewer">
+    <canvas id="pdfCanvas"></canvas>
+    <div class="error" id="errorBox">
+      <div>
+        No se pudo cargar el PDF.<br>
+        Revisa que el archivo exista en la misma carpeta y se llame exactamente<br>
+        <strong>revista-de-contabilidad-administrativa-c.pdf</strong><br><br>
+        <a href="revista-de-contabilidad-administrativa-c.pdf" target="_blank" rel="noopener">Abrir PDF</a>
+      </div>
+    </div>
   </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.6.82/pdf.min.mjs" type="module"></script>
+  <script type="module">
+    import * as pdfjsLib from 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.6.82/pdf.min.mjs';
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.6.82/pdf.worker.min.mjs';
+
+    const url = 'revista-de-contabilidad-administrativa-c.pdf';
+    const canvas = document.getElementById('pdfCanvas');
+    const ctx = canvas.getContext('2d');
+    const pageInfo = document.getElementById('pageInfo');
+    const errorBox = document.getElementById('errorBox');
+    const prevBtn = document.getElementById('prev');
+    const nextBtn = document.getElementById('next');
+
+    let pdfDoc = null;
+    let pageNum = 1;
+    let pageRendering = false;
+    let pageNumPending = null;
+    let scale = 1.35;
+
+    function fitScale(page) {
+      const viewport = page.getViewport({ scale: 1 });
+      const viewer = document.querySelector('.viewer');
+      const vw = viewer.clientWidth - 20;
+      const vh = viewer.clientHeight - 20;
+      return Math.min(vw / viewport.width, vh / viewport.height);
+    }
+
+    function renderPage(num) {
+      pageRendering = true;
+      pdfDoc.getPage(num).then(page => {
+        scale = fitScale(page);
+        const viewport = page.getViewport({ scale });
+
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        canvas.style.width = viewport.width + 'px';
+        canvas.style.height = viewport.height + 'px';
+
+        const renderContext = {
+          canvasContext: ctx,
+          viewport: viewport
+        };
+
+        const renderTask = page.render(renderContext);
+        renderTask.promise.then(() => {
+          pageRendering = false;
+          pageInfo.textContent = `Página ${pageNum} de ${pdfDoc.numPages}`;
+          if (pageNumPending !== null) {
+            const n = pageNumPending;
+            pageNumPending = null;
+            renderPage(n);
+          }
+        });
+      });
+    }
+
+    function queueRenderPage(num) {
+      if (pageRendering) pageNumPending = num;
+      else renderPage(num);
+    }
+
+    function onPrevPage() {
+      if (pageNum <= 1) return;
+      pageNum--;
+      queueRenderPage(pageNum);
+    }
+
+    function onNextPage() {
+      if (pageNum >= pdfDoc.numPages) return;
+      pageNum++;
+      queueRenderPage(pageNum);
+    }
+
+    prevBtn.addEventListener('click', onPrevPage);
+    nextBtn.addEventListener('click', onNextPage);
+
+    window.addEventListener('resize', () => {
+      if (pdfDoc) queueRenderPage(pageNum);
+    });
+
+    pdfjsLib.getDocument(url).promise.then(pdf => {
+      pdfDoc = pdf;
+      pageInfo.textContent = `Página 1 de ${pdf.numPages}`;
+      renderPage(pageNum);
+    }).catch(err => {
+      console.error(err);
+      errorBox.style.display = 'flex';
+      pageInfo.textContent = 'Error al cargar';
+    });
+  </script>
 </body>
 </html>
