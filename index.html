@@ -11,29 +11,43 @@
       width: 100%;
       height: 100%;
       overflow: hidden;
-      background: #1f1f1f;
+      background: #18181b;
       font-family: Arial, sans-serif;
     }
 
-    .toolbar {
-      height: 48px;
-      background: #111827;
-      color: #fff;
+    .topbar {
+      height: 54px;
+      background: linear-gradient(90deg, #0f172a, #1e293b);
+      color: #f8fafc;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 0 14px;
+      padding: 0 16px;
       box-sizing: border-box;
-      gap: 10px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      gap: 12px;
     }
 
-    .toolbar .left {
+    .brand {
+      display: flex;
+      flex-direction: column;
+      line-height: 1.1;
+      min-width: 0;
+    }
+
+    .brand .title {
       font-size: 14px;
-      font-weight: 600;
-      white-space: nowrap;
+      font-weight: 700;
+      letter-spacing: .2px;
     }
 
-    .toolbar .right {
+    .brand .subtitle {
+      font-size: 11px;
+      color: #cbd5e1;
+      margin-top: 2px;
+    }
+
+    .controls {
       display: flex;
       align-items: center;
       gap: 8px;
@@ -41,42 +55,43 @@
       justify-content: flex-end;
     }
 
-    .toolbar button {
-      background: #2563eb;
+    .controls button {
+      border: 1px solid rgba(255,255,255,0.16);
+      background: #1d4ed8;
       color: #fff;
-      border: 0;
-      padding: 8px 11px;
       border-radius: 6px;
+      padding: 7px 10px;
       cursor: pointer;
-      font-size: 14px;
+      font-size: 13px;
       line-height: 1;
     }
 
-    .toolbar button:hover {
-      background: #1d4ed8;
+    .controls button:hover {
+      background: #2563eb;
     }
 
     .pageinfo {
-      color: #d1d5db;
-      font-size: 14px;
       min-width: 170px;
       text-align: center;
+      color: #e2e8f0;
+      font-size: 13px;
+      padding: 0 6px;
     }
 
     .viewer {
       width: 100%;
-      height: calc(100% - 48px);
+      height: calc(100% - 54px);
       display: flex;
       align-items: center;
       justify-content: center;
       overflow: hidden;
-      background: #2b2b2b;
+      background: #2a2a2e;
       position: relative;
     }
 
     #pdfCanvas {
       background: #fff;
-      box-shadow: 0 10px 30px rgba(0,0,0,.35);
+      box-shadow: 0 12px 30px rgba(0,0,0,.35);
       max-width: 100%;
       max-height: 100%;
     }
@@ -91,16 +106,37 @@
       text-align: center;
       padding: 20px;
     }
+
+    @media (max-width: 700px) {
+      .topbar {
+        height: auto;
+        padding: 10px 12px;
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .controls {
+        justify-content: center;
+      }
+      .viewer {
+        height: calc(100% - 96px);
+      }
+    }
   </style>
 </head>
 <body>
-  <div class="toolbar">
-    <div class="left">Revista académica Contabilidad</div>
-    <div class="right">
+  <div class="topbar">
+    <div class="brand">
+      <div class="title">Revista de Contabilidad Administrativa</div>
+      <div class="subtitle">Maestría en Gerencia General</div>
+    </div>
+
+    <div class="controls">
       <button id="prev">Anterior</button>
-      <button id="zoomOut">- Zoom</button>
+      <button id="fitPage">Ajustar a página</button>
+      <button id="zoom100">100%</button>
+      <button id="zoomOut">-</button>
       <div class="pageinfo" id="pageInfo">Cargando...</div>
-      <button id="zoomIn">+ Zoom</button>
+      <button id="zoomIn">+</button>
       <button id="next">Siguiente</button>
     </div>
   </div>
@@ -108,7 +144,7 @@
   <div class="viewer">
     <canvas id="pdfCanvas"></canvas>
     <div class="error" id="errorBox">
-      No se pudo cargar el PDF. Revisa el nombre del archivo y que esté en la misma carpeta.
+      No se pudo cargar el PDF. Verifica que el archivo <strong>revista-de-contabilidad-administrativa-c.pdf</strong> esté en la misma carpeta.
     </div>
   </div>
 
@@ -127,14 +163,17 @@
     const nextBtn = document.getElementById('next');
     const zoomInBtn = document.getElementById('zoomIn');
     const zoomOutBtn = document.getElementById('zoomOut');
+    const fitPageBtn = document.getElementById('fitPage');
+    const zoom100Btn = document.getElementById('zoom100');
 
     let pdfDoc = null;
     let pageNum = 1;
     let pageRendering = false;
     let pageNumPending = null;
-    let zoom = 1.25;
+    let mode = 'fit';
+    let zoom = 1.0;
 
-    function getBaseFit(page) {
+    function getPageBaseFit(page) {
       const viewport = page.getViewport({ scale: 1 });
       const viewer = document.querySelector('.viewer');
       const vw = viewer.clientWidth - 24;
@@ -142,33 +181,41 @@
       return Math.min(vw / viewport.width, vh / viewport.height);
     }
 
+    function getRenderScale(page) {
+      const fit = getPageBaseFit(page);
+      if (mode === 'fit') return fit;
+      if (mode === '100') return fit * 1.25;
+      return fit * zoom;
+    }
+
     function renderPage(num) {
       if (!pdfDoc) return;
       pageRendering = true;
 
       pdfDoc.getPage(num).then(page => {
-        const baseFit = getBaseFit(page);
-        const scale = baseFit * zoom;
+        const scale = getRenderScale(page);
         const viewport = page.getViewport({ scale });
-
         const outputScale = window.devicePixelRatio || 1;
+
         canvas.width = Math.floor(viewport.width * outputScale);
         canvas.height = Math.floor(viewport.height * outputScale);
         canvas.style.width = Math.floor(viewport.width) + 'px';
         canvas.style.height = Math.floor(viewport.height) + 'px';
 
-        const transform = outputScale !== 1 ? [outputScale, 0, 0, outputScale, 0, 0] : null;
+        ctx.setTransform(outputScale, 0, 0, outputScale, 0, 0);
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
 
         const renderContext = {
           canvasContext: ctx,
-          transform: transform,
           viewport: viewport
         };
 
         const renderTask = page.render(renderContext);
         renderTask.promise.then(() => {
           pageRendering = false;
-          pageInfo.textContent = `Página ${pageNum} de ${pdfDoc.numPages} | Zoom ${Math.round(zoom * 100)}%`;
+          let zoomText = mode === 'fit' ? 'Ajustar a página' : (mode === '100' ? '100%' : `${Math.round(zoom * 100)}%`);
+          pageInfo.textContent = `Página ${pageNum} de ${pdfDoc.numPages} | ${zoomText}`;
           if (pageNumPending !== null) {
             const n = pageNumPending;
             pageNumPending = null;
@@ -200,23 +247,33 @@
     }
 
     function onZoomIn() {
-      if (zoom < 2.2) {
-        zoom = Math.min(2.2, +(zoom + 0.15).toFixed(2));
-        renderCurrentPage();
-      }
+      mode = 'custom';
+      zoom = Math.min(2.5, +(zoom + 0.15).toFixed(2));
+      renderCurrentPage();
     }
 
     function onZoomOut() {
-      if (zoom > 0.85) {
-        zoom = Math.max(0.85, +(zoom - 0.15).toFixed(2));
-        renderCurrentPage();
-      }
+      mode = 'custom';
+      zoom = Math.max(0.5, +(zoom - 0.15).toFixed(2));
+      renderCurrentPage();
+    }
+
+    function onFitPage() {
+      mode = 'fit';
+      renderCurrentPage();
+    }
+
+    function onZoom100() {
+      mode = '100';
+      renderCurrentPage();
     }
 
     prevBtn.addEventListener('click', onPrevPage);
     nextBtn.addEventListener('click', onNextPage);
     zoomInBtn.addEventListener('click', onZoomIn);
     zoomOutBtn.addEventListener('click', onZoomOut);
+    fitPageBtn.addEventListener('click', onFitPage);
+    zoom100Btn.addEventListener('click', onZoom100);
 
     window.addEventListener('resize', () => {
       if (!pdfDoc) return;
