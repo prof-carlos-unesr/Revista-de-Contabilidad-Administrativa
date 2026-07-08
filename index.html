@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Revista Académica de Contabilidad Administrativa</title>
+  <title>Revista de Contabilidad Administrativa</title>
   <style>
     html, body {
       margin: 0;
@@ -14,6 +14,7 @@
       background: #1f1f1f;
       font-family: Arial, sans-serif;
     }
+
     .toolbar {
       height: 48px;
       background: #111827;
@@ -25,36 +26,43 @@
       box-sizing: border-box;
       gap: 10px;
     }
+
     .toolbar .left {
       font-size: 14px;
       font-weight: 600;
+      white-space: nowrap;
     }
+
     .toolbar .right {
       display: flex;
       align-items: center;
       gap: 8px;
       flex-wrap: wrap;
+      justify-content: flex-end;
     }
-    .toolbar button, .toolbar a {
+
+    .toolbar button {
       background: #2563eb;
       color: #fff;
       border: 0;
       padding: 8px 11px;
       border-radius: 6px;
-      text-decoration: none;
       cursor: pointer;
       font-size: 14px;
       line-height: 1;
     }
-    .toolbar button:hover, .toolbar a:hover {
+
+    .toolbar button:hover {
       background: #1d4ed8;
     }
+
     .pageinfo {
       color: #d1d5db;
       font-size: 14px;
       min-width: 110px;
       text-align: center;
     }
+
     .viewer {
       width: 100%;
       height: calc(100% - 48px);
@@ -65,12 +73,14 @@
       background: #2b2b2b;
       position: relative;
     }
+
     #pdfCanvas {
       background: #fff;
       box-shadow: 0 10px 30px rgba(0,0,0,.35);
       max-width: 100%;
       max-height: 100%;
     }
+
     .error {
       position: absolute;
       inset: 0;
@@ -81,32 +91,24 @@
       text-align: center;
       padding: 20px;
     }
-    .error a {
-      color: #fff;
-      font-weight: 700;
-    }
   </style>
 </head>
 <body>
   <div class="toolbar">
-    <div class="left">Revista Académica de Contabilidad Administrativa</div>
+    <div class="left">Revista académica</div>
     <div class="right">
       <button id="prev">Anterior</button>
+      <button id="zoomOut">- Zoom</button>
       <div class="pageinfo" id="pageInfo">Cargando...</div>
+      <button id="zoomIn">+ Zoom</button>
       <button id="next">Siguiente</button>
-      <a href="revista-de-contabilidad-administrativa-c.pdf" target="_blank" rel="noopener">Abrir PDF</a>
     </div>
   </div>
 
   <div class="viewer">
     <canvas id="pdfCanvas"></canvas>
     <div class="error" id="errorBox">
-      <div>
-        No se pudo cargar el PDF.<br>
-        Revisa que el archivo exista en la misma carpeta y se llame exactamente<br>
-        <strong>revista-de-contabilidad-administrativa-c.pdf</strong><br><br>
-        <a href="revista-de-contabilidad-administrativa-c.pdf" target="_blank" rel="noopener">Abrir PDF</a>
-      </div>
+      No se pudo cargar el PDF. Revisa el nombre del archivo y que esté en la misma carpeta.
     </div>
   </div>
 
@@ -120,14 +122,17 @@
     const ctx = canvas.getContext('2d');
     const pageInfo = document.getElementById('pageInfo');
     const errorBox = document.getElementById('errorBox');
+
     const prevBtn = document.getElementById('prev');
     const nextBtn = document.getElementById('next');
+    const zoomInBtn = document.getElementById('zoomIn');
+    const zoomOutBtn = document.getElementById('zoomOut');
 
     let pdfDoc = null;
     let pageNum = 1;
     let pageRendering = false;
     let pageNumPending = null;
-    let scale = 1.35;
+    let scale = 1.20;
 
     function fitScale(page) {
       const viewport = page.getViewport({ scale: 1 });
@@ -138,11 +143,11 @@
     }
 
     function renderPage(num) {
+      if (!pdfDoc) return;
       pageRendering = true;
-      pdfDoc.getPage(num).then(page => {
-        scale = fitScale(page);
-        const viewport = page.getViewport({ scale });
 
+      pdfDoc.getPage(num).then(page => {
+        const viewport = page.getViewport({ scale });
         canvas.width = viewport.width;
         canvas.height = viewport.height;
         canvas.style.width = viewport.width + 'px';
@@ -156,7 +161,7 @@
         const renderTask = page.render(renderContext);
         renderTask.promise.then(() => {
           pageRendering = false;
-          pageInfo.textContent = `Página ${pageNum} de ${pdfDoc.numPages}`;
+          pageInfo.textContent = `Página ${pageNum} de ${pdfDoc.numPages} | Zoom ${Math.round(scale * 100)}%`;
           if (pageNumPending !== null) {
             const n = pageNumPending;
             pageNumPending = null;
@@ -171,29 +176,55 @@
       else renderPage(num);
     }
 
+    function renderCurrentPage() {
+      queueRenderPage(pageNum);
+    }
+
     function onPrevPage() {
       if (pageNum <= 1) return;
       pageNum--;
-      queueRenderPage(pageNum);
+      renderCurrentPage();
     }
 
     function onNextPage() {
       if (pageNum >= pdfDoc.numPages) return;
       pageNum++;
-      queueRenderPage(pageNum);
+      renderCurrentPage();
+    }
+
+    function onZoomIn() {
+      if (scale < 2.5) {
+        scale = Math.min(2.5, +(scale + 0.15).toFixed(2));
+        renderCurrentPage();
+      }
+    }
+
+    function onZoomOut() {
+      if (scale > 0.5) {
+        scale = Math.max(0.5, +(scale - 0.15).toFixed(2));
+        renderCurrentPage();
+      }
     }
 
     prevBtn.addEventListener('click', onPrevPage);
     nextBtn.addEventListener('click', onNextPage);
+    zoomInBtn.addEventListener('click', onZoomIn);
+    zoomOutBtn.addEventListener('click', onZoomOut);
 
     window.addEventListener('resize', () => {
-      if (pdfDoc) queueRenderPage(pageNum);
+      if (!pdfDoc) return;
+      pdfDoc.getPage(pageNum).then(page => {
+        scale = fitScale(page);
+        renderCurrentPage();
+      });
     });
 
     pdfjsLib.getDocument(url).promise.then(pdf => {
       pdfDoc = pdf;
-      pageInfo.textContent = `Página 1 de ${pdf.numPages}`;
-      renderPage(pageNum);
+      pdfDoc.getPage(pageNum).then(page => {
+        scale = fitScale(page);
+        renderCurrentPage();
+      });
     }).catch(err => {
       console.error(err);
       errorBox.style.display = 'flex';
