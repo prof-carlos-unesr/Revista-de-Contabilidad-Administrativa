@@ -59,7 +59,7 @@
     .pageinfo {
       color: #d1d5db;
       font-size: 14px;
-      min-width: 140px;
+      min-width: 170px;
       text-align: center;
     }
 
@@ -132,9 +132,9 @@
     let pageNum = 1;
     let pageRendering = false;
     let pageNumPending = null;
-    let zoom = 1.0;
+    let zoom = 1.25;
 
-    function fitScale(page) {
+    function getBaseFit(page) {
       const viewport = page.getViewport({ scale: 1 });
       const viewer = document.querySelector('.viewer');
       const vw = viewer.clientWidth - 24;
@@ -147,21 +147,21 @@
       pageRendering = true;
 
       pdfDoc.getPage(num).then(page => {
-        const baseScale = fitScale(page) * zoom;
-        const viewport = page.getViewport({ scale: baseScale });
+        const baseFit = getBaseFit(page);
+        const scale = baseFit * zoom;
+        const viewport = page.getViewport({ scale });
 
-        const dpr = window.devicePixelRatio || 1;
-        canvas.width = Math.floor(viewport.width * dpr);
-        canvas.height = Math.floor(viewport.height * dpr);
-        canvas.style.width = viewport.width + 'px';
-        canvas.style.height = viewport.height + 'px';
+        const outputScale = window.devicePixelRatio || 1;
+        canvas.width = Math.floor(viewport.width * outputScale);
+        canvas.height = Math.floor(viewport.height * outputScale);
+        canvas.style.width = Math.floor(viewport.width) + 'px';
+        canvas.style.height = Math.floor(viewport.height) + 'px';
 
-        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-        ctx.imageSmoothingEnabled = true;
-        ctx.imageSmoothingQuality = 'high';
+        const transform = outputScale !== 1 ? [outputScale, 0, 0, outputScale, 0, 0] : null;
 
         const renderContext = {
           canvasContext: ctx,
+          transform: transform,
           viewport: viewport
         };
 
@@ -200,15 +200,15 @@
     }
 
     function onZoomIn() {
-      if (zoom < 2.5) {
-        zoom = Math.min(2.5, +(zoom + 0.15).toFixed(2));
+      if (zoom < 2.2) {
+        zoom = Math.min(2.2, +(zoom + 0.15).toFixed(2));
         renderCurrentPage();
       }
     }
 
     function onZoomOut() {
-      if (zoom > 0.5) {
-        zoom = Math.max(0.5, +(zoom - 0.15).toFixed(2));
+      if (zoom > 0.85) {
+        zoom = Math.max(0.85, +(zoom - 0.15).toFixed(2));
         renderCurrentPage();
       }
     }
@@ -220,7 +220,7 @@
 
     window.addEventListener('resize', () => {
       if (!pdfDoc) return;
-      pdfDoc.getPage(pageNum).then(() => renderCurrentPage());
+      renderCurrentPage();
     });
 
     pdfjsLib.getDocument(url).promise.then(pdf => {
