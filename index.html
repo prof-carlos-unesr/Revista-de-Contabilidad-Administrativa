@@ -144,18 +144,22 @@
   <div class="viewer">
     <canvas id="pdfCanvas"></canvas>
     <div class="error" id="errorBox">
-      No se pudo cargar el PDF. Verifica que el archivo <strong>revista-de-contabilidad-administrativa-c.pdf</strong> esté en la misma carpeta.
+      No se pudo cargar el PDF. Verifica que el archivo
+      <strong>revista-de-contabilidad-administrativa-c.pdf</strong>
+      esté en la misma carpeta del repositorio.
     </div>
   </div>
 
-  <!-- Versión clásica de PDF.js (script no modular) y worker desde CDN probado.[web:18][web:26] -->
+  <!-- PDF.js clásico desde CDNJS.[web:18] -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
   <script>
-    // Configurar el worker usando la misma versión del CDN.[web:18]
+    // Configurar worker con la misma versión.[web:18]
     pdfjsLib.GlobalWorkerOptions.workerSrc =
       "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js";
 
-    const url = "revista-de-contabilidad-administrativa-c.pdf"; // mismo nombre de archivo PDF.
+    // PDF y HTML en la misma carpeta del repo.
+    const url = "revista-de-contabilidad-administrativa-c.pdf";
+
     const canvas = document.getElementById("pdfCanvas");
     const ctx = canvas.getContext("2d", { alpha: false });
     const pageInfo = document.getElementById("pageInfo");
@@ -173,10 +177,9 @@
     let pageRendering = false;
     let pageNumPending = null;
 
-    // 'fit' usa ajuste a página; 'custom' usa zoomFactor relativo al fit.[web:1]
     let mode = "fit";
-    let zoomFactor = 1.0;    // 1.0 = 100% respecto al "ajustar a página"
-    const step = 0.5;        // cada click del botón "100%" cambia 50% (0.5)
+    let zoomFactor = 1.0;
+    const step = 0.5;
 
     function getPageBaseFit(page) {
       const viewport = page.getViewport({ scale: 1 });
@@ -236,7 +239,7 @@
           }
         });
       }).catch(err => {
-        console.error(err);
+        console.error("Error al obtener la página:", err);
         errorBox.style.display = "flex";
         pageInfo.textContent = "Error al cargar";
       });
@@ -281,11 +284,11 @@
       renderCurrentPage();
     }
 
-    // Botón "100%": cada clic aumenta 50% (step), y al pasar un límite vuelve a 100%.
+    // Botón "100%": cada clic aumenta 50% (step) y al pasar un límite vuelve a 100%.
     function onZoom100() {
       mode = "custom";
-      zoomFactor += step;          // incremento de 0.5 = 50%
-      if (zoomFactor > 4) {        // límite de 400% antes de volver a 100%
+      zoomFactor += step;
+      if (zoomFactor > 4) {
         zoomFactor = 1.0;
       }
       renderCurrentPage();
@@ -303,15 +306,15 @@
       renderCurrentPage();
     });
 
-    // Cargar el documento PDF (nota el uso de .promise).[web:1][web:18]
+    // Cargar el documento PDF desde la misma carpeta.[web:1]
     pdfjsLib.getDocument(url).promise.then(pdf => {
       pdfDoc = pdf;
       renderCurrentPage();
     }).catch(err => {
-      console.error(err);
+      console.error("Error al cargar el PDF:", err);
       errorBox.style.display = "flex";
       pageInfo.textContent = "Error al cargar";
     });
   </script>
 </body>
-</html>    
+</html>
