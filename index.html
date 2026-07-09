@@ -148,48 +148,47 @@
     </div>
   </div>
 
-  <!-- PDF.js desde CDN, misma versión que usabas.[web:12] -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.6.82/pdf.min.mjs" type="module"></script>
-  <script type="module">
-    import * as pdfjsLib from 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.6.82/pdf.min.mjs';
-    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.6.82/pdf.worker.min.mjs';[web:12][web:18]
+  <!-- Versión clásica de PDF.js (script no modular) y worker desde CDN probado.[web:18][web:26] -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+  <script>
+    // Configurar el worker usando la misma versión del CDN.[web:18]
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+      "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js";
 
-    const url = 'revista-de-contabilidad-administrativa-c.pdf'; // nombre del archivo PDF, igual que en tu código.
-    const canvas = document.getElementById('pdfCanvas');
-    const ctx = canvas.getContext('2d', { alpha: false });
-    const pageInfo = document.getElementById('pageInfo');
-    const errorBox = document.getElementById('errorBox');
+    const url = "revista-de-contabilidad-administrativa-c.pdf"; // mismo nombre de archivo PDF.
+    const canvas = document.getElementById("pdfCanvas");
+    const ctx = canvas.getContext("2d", { alpha: false });
+    const pageInfo = document.getElementById("pageInfo");
+    const errorBox = document.getElementById("errorBox");
 
-    const prevBtn = document.getElementById('prev');
-    const nextBtn = document.getElementById('next');
-    const zoomInBtn = document.getElementById('zoomIn');
-    const zoomOutBtn = document.getElementById('zoomOut');
-    const fitPageBtn = document.getElementById('fitPage');
-    const zoom100Btn = document.getElementById('zoom100');
+    const prevBtn = document.getElementById("prev");
+    const nextBtn = document.getElementById("next");
+    const zoomInBtn = document.getElementById("zoomIn");
+    const zoomOutBtn = document.getElementById("zoomOut");
+    const fitPageBtn = document.getElementById("fitPage");
+    const zoom100Btn = document.getElementById("zoom100");
 
     let pdfDoc = null;
     let pageNum = 1;
     let pageRendering = false;
     let pageNumPending = null;
 
-    // mode: 'fit' usa siempre el ajuste a página; 'custom' usa zoomFactor relativo al fit.[web:11]
-    let mode = 'fit';
+    // 'fit' usa ajuste a página; 'custom' usa zoomFactor relativo al fit.[web:1]
+    let mode = "fit";
     let zoomFactor = 1.0;    // 1.0 = 100% respecto al "ajustar a página"
     const step = 0.5;        // cada click del botón "100%" cambia 50% (0.5)
 
     function getPageBaseFit(page) {
       const viewport = page.getViewport({ scale: 1 });
-      const viewer = document.querySelector('.viewer');
+      const viewer = document.querySelector(".viewer");
       const vw = viewer.clientWidth - 24;
       const vh = viewer.clientHeight - 24;
-      // Escala base que hace que la página quepa en el visor.[web:2]
       return Math.min(vw / viewport.width, vh / viewport.height);
     }
 
     function getRenderScale(page) {
       const fit = getPageBaseFit(page);
-      if (mode === 'fit') return fit;
-      // modo custom: aplicar zoomFactor relativo al ajuste base.[web:11]
+      if (mode === "fit") return fit;
       return fit * zoomFactor;
     }
 
@@ -204,12 +203,12 @@
 
         canvas.width = Math.floor(viewport.width * outputScale);
         canvas.height = Math.floor(viewport.height * outputScale);
-        canvas.style.width = Math.floor(viewport.width) + 'px';
-        canvas.style.height = Math.floor(viewport.height) + 'px';
+        canvas.style.width = Math.floor(viewport.width) + "px";
+        canvas.style.height = Math.floor(viewport.height) + "px";
 
         ctx.setTransform(outputScale, 0, 0, outputScale, 0, 0);
         ctx.imageSmoothingEnabled = true;
-        ctx.imageSmoothingQuality = 'high';
+        ctx.imageSmoothingQuality = "high";
 
         const renderContext = {
           canvasContext: ctx,
@@ -220,10 +219,9 @@
         renderTask.promise.then(() => {
           pageRendering = false;
 
-          // Texto de zoom mostrado.
           let zoomText;
-          if (mode === 'fit') {
-            zoomText = 'Ajustar a página';
+          if (mode === "fit") {
+            zoomText = "Ajustar a página";
           } else {
             const pct = Math.round(zoomFactor * 100);
             zoomText = `${pct}%`;
@@ -237,6 +235,10 @@
             renderPage(n);
           }
         });
+      }).catch(err => {
+        console.error(err);
+        errorBox.style.display = "flex";
+        pageInfo.textContent = "Error al cargar";
       });
     }
 
@@ -262,28 +264,26 @@
     }
 
     function onZoomIn() {
-      mode = 'custom';
-      // Zoom fino con los botones +/-, independiente del botón "100%".[web:11]
+      mode = "custom";
       zoomFactor = Math.min(5, +(zoomFactor + 0.15).toFixed(2));
       renderCurrentPage();
     }
 
     function onZoomOut() {
-      mode = 'custom';
+      mode = "custom";
       zoomFactor = Math.max(0.2, +(zoomFactor - 0.15).toFixed(2));
       renderCurrentPage();
     }
 
-    // Ajustar completamente a página
     function onFitPage() {
-      mode = 'fit';
+      mode = "fit";
       zoomFactor = 1.0;
       renderCurrentPage();
     }
 
     // Botón "100%": cada clic aumenta 50% (step), y al pasar un límite vuelve a 100%.
     function onZoom100() {
-      mode = 'custom';
+      mode = "custom";
       zoomFactor += step;          // incremento de 0.5 = 50%
       if (zoomFactor > 4) {        // límite de 400% antes de volver a 100%
         zoomFactor = 1.0;
@@ -291,26 +291,27 @@
       renderCurrentPage();
     }
 
-    prevBtn.addEventListener('click', onPrevPage);
-    nextBtn.addEventListener('click', onNextPage);
-    zoomInBtn.addEventListener('click', onZoomIn);
-    zoomOutBtn.addEventListener('click', onZoomOut);
-    fitPageBtn.addEventListener('click', onFitPage);
-    zoom100Btn.addEventListener('click', onZoom100);
+    prevBtn.addEventListener("click", onPrevPage);
+    nextBtn.addEventListener("click", onNextPage);
+    zoomInBtn.addEventListener("click", onZoomIn);
+    zoomOutBtn.addEventListener("click", onZoomOut);
+    fitPageBtn.addEventListener("click", onFitPage);
+    zoom100Btn.addEventListener("click", onZoom100);
 
-    window.addEventListener('resize', () => {
+    window.addEventListener("resize", () => {
       if (!pdfDoc) return;
       renderCurrentPage();
     });
 
+    // Cargar el documento PDF (nota el uso de .promise).[web:1][web:18]
     pdfjsLib.getDocument(url).promise.then(pdf => {
       pdfDoc = pdf;
       renderCurrentPage();
     }).catch(err => {
       console.error(err);
-      errorBox.style.display = 'flex';
-      pageInfo.textContent = 'Error al cargar';
+      errorBox.style.display = "flex";
+      pageInfo.textContent = "Error al cargar";
     });
   </script>
 </body>
-</html>
+</html>    
