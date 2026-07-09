@@ -148,12 +148,13 @@
     </div>
   </div>
 
+  <!-- PDF.js desde CDN, misma versión que usabas.[web:12] -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.6.82/pdf.min.mjs" type="module"></script>
   <script type="module">
     import * as pdfjsLib from 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.6.82/pdf.min.mjs';
-    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.6.82/pdf.worker.min.mjs';
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.6.82/pdf.worker.min.mjs';[web:12][web:18]
 
-    const url = 'revista-de-contabilidad-administrativa-c.pdf';
+    const url = 'revista-de-contabilidad-administrativa-c.pdf'; // nombre del archivo PDF, igual que en tu código.
     const canvas = document.getElementById('pdfCanvas');
     const ctx = canvas.getContext('2d', { alpha: false });
     const pageInfo = document.getElementById('pageInfo');
@@ -170,22 +171,26 @@
     let pageNum = 1;
     let pageRendering = false;
     let pageNumPending = null;
+
+    // mode: 'fit' usa siempre el ajuste a página; 'custom' usa zoomFactor relativo al fit.[web:11]
     let mode = 'fit';
-    let zoom = 1.0;
+    let zoomFactor = 1.0;    // 1.0 = 100% respecto al "ajustar a página"
+    const step = 0.5;        // cada click del botón "100%" cambia 50% (0.5)
 
     function getPageBaseFit(page) {
       const viewport = page.getViewport({ scale: 1 });
       const viewer = document.querySelector('.viewer');
       const vw = viewer.clientWidth - 24;
       const vh = viewer.clientHeight - 24;
+      // Escala base que hace que la página quepa en el visor.[web:2]
       return Math.min(vw / viewport.width, vh / viewport.height);
     }
 
     function getRenderScale(page) {
       const fit = getPageBaseFit(page);
       if (mode === 'fit') return fit;
-      if (mode === '100') return fit * 1.25;
-      return fit * zoom;
+      // modo custom: aplicar zoomFactor relativo al ajuste base.[web:11]
+      return fit * zoomFactor;
     }
 
     function renderPage(num) {
@@ -214,8 +219,18 @@
         const renderTask = page.render(renderContext);
         renderTask.promise.then(() => {
           pageRendering = false;
-          let zoomText = mode === 'fit' ? 'Ajustar a página' : (mode === '100' ? '100%' : `${Math.round(zoom * 100)}%`);
+
+          // Texto de zoom mostrado.
+          let zoomText;
+          if (mode === 'fit') {
+            zoomText = 'Ajustar a página';
+          } else {
+            const pct = Math.round(zoomFactor * 100);
+            zoomText = `${pct}%`;
+          }
+
           pageInfo.textContent = `Página ${pageNum} de ${pdfDoc.numPages} | ${zoomText}`;
+
           if (pageNumPending !== null) {
             const n = pageNumPending;
             pageNumPending = null;
@@ -248,23 +263,31 @@
 
     function onZoomIn() {
       mode = 'custom';
-      zoom = Math.min(2.5, +(zoom + 0.15).toFixed(2));
+      // Zoom fino con los botones +/-, independiente del botón "100%".[web:11]
+      zoomFactor = Math.min(5, +(zoomFactor + 0.15).toFixed(2));
       renderCurrentPage();
     }
 
     function onZoomOut() {
       mode = 'custom';
-      zoom = Math.max(0.5, +(zoom - 0.15).toFixed(2));
+      zoomFactor = Math.max(0.2, +(zoomFactor - 0.15).toFixed(2));
       renderCurrentPage();
     }
 
+    // Ajustar completamente a página
     function onFitPage() {
       mode = 'fit';
+      zoomFactor = 1.0;
       renderCurrentPage();
     }
 
+    // Botón "100%": cada clic aumenta 50% (step), y al pasar un límite vuelve a 100%.
     function onZoom100() {
-      mode = '100';
+      mode = 'custom';
+      zoomFactor += step;          // incremento de 0.5 = 50%
+      if (zoomFactor > 4) {        // límite de 400% antes de volver a 100%
+        zoomFactor = 1.0;
+      }
       renderCurrentPage();
     }
 
