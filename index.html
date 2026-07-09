@@ -25,16 +25,26 @@
       border-bottom: 1px solid rgba(255,255,255,0.08);
     }
     .brand {
+      width: 100%;
       display: flex;
-      flex-direction: column;
+      justify-content: space-between;
+      align-items: flex-start;
       line-height: 1.1;
     }
-    .brand .title {
+    .left,
+    .right {
+      display: flex;
+      flex-direction: column;
+    }
+    .right {
+      text-align: right;
+    }
+    .title {
       font-size: 14px;
       font-weight: 700;
       letter-spacing: .2px;
     }
-    .brand .subtitle {
+    .subtitle {
       font-size: 11px;
       color: #cbd5e1;
       margin-top: 2px;
@@ -48,22 +58,19 @@
 </head>
 <body>
   <div class="topbar">
-  <div class="brand">
-    <div style="float: left;">
-      <div class="title">Revista Académica de Contabilidad Administrativa</div>
-      <div class="subtitle">Tinaquillo, Julio del 2026</div>
-    </div>
+    <div class="brand">
+      <div class="left">
+        <div class="title">Revista Académica de Contabilidad Administrativa</div>
+        <div class="subtitle">Tinaquillo, Julio del 2026</div>
+      </div>
 
-    <div style="float: right; text-align: right;">
-      <div class="title">Universidad Nacional Experimental de los Llanos Ezequiel Zamora</div>
-      <div class="subtitle">Maestría en Gerencia General</div>
+      <div class="right">
+        <div class="title">Universidad Nacional Experimental de los Llanos Ezequiel Zamora</div>
+        <div class="subtitle">Maestría en Gerencia General</div>
+      </div>
     </div>
-
-    <div style="clear: both;"></div>
   </div>
-</div>
 
-  <!-- Visor oficial de PDF.js desde tu propia carpeta web.[web:11][web:93] -->
   <iframe
     class="viewer-frame"
     src="web/viewer.html?file=%2FRevista-de-Contabilidad-Administrativa%2Frevista-de-contabilidad-administrativa-c.pdf">
